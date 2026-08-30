@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Match-3 Puzzle Prototype</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Match-3 Puzzle - Pro Version</title>
     <style>
         :root {
-            --bg-color: #0f172a;
+            --bg-color: #0b0f19;
             --panel-bg: #1e293b;
             --text-color: #f8fafc;
             --accent: #38bdf8;
@@ -16,107 +16,115 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 16px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            touch-action: none;
         }
-        h1 { margin: 8px 0; font-size: 1.5rem; text-align: center; }
+        h1 { margin: 4px 0; font-size: 1.3rem; text-align: center; }
         .game-container {
             background: var(--panel-bg);
-            padding: 16px;
+            padding: 12px;
             border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.5);
             max-width: 420px;
             width: 100%;
             box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .hud {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
             font-weight: bold;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.3);
             padding: 8px 12px;
             border-radius: 8px;
         }
         .board {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
-            gap: 4px;
+            gap: 3px;
             background: #020617;
-            padding: 8px;
+            padding: 6px;
             border-radius: 12px;
             aspect-ratio: 1;
+            position: relative;
         }
         .cell {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             user-select: none;
-            transition: transform 0.1s ease, background-color 0.1s ease;
             position: relative;
             font-size: 1.2rem;
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.1);
+            transition: transform 0.15s ease, filter 0.15s ease;
         }
-        .cell:hover { background: rgba(255, 255, 255, 0.1); }
-        .cell.selected {
-            outline: 3px solid var(--accent);
-            transform: scale(0.95);
-        }
-        .piece-0 { background: radial-gradient(circle, #f87171 0%, #ef4444 100%); border-radius: 6px; }
-        .piece-1 { background: radial-gradient(circle, #38bdf8 0%, #0284c7 100%); border-radius: 50%; }
-        .piece-2 { background: radial-gradient(circle, #4ade80 0%, #22c55e 100%); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); border-radius: 0; }
-        .piece-3 { background: radial-gradient(circle, #facc15 0%, #eab308 100%); clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
-        .piece-4 { background: radial-gradient(circle, #c084fc 0%, #a855f7 100%); border-radius: 50%; }
+        .cell.dragging { transform: scale(1.15); z-index: 10; filter: brightness(1.2); }
         
-        .special-drone { background: radial-gradient(circle, #38bdf8 0%, #1d4ed8 100%); border-radius: 4px; border: 2px dashed #fff; }
-        .special-tnt { background: radial-gradient(circle, #f97316 0%, #c2410c 100%); border-radius: 8px; border: 2px solid #facc15; }
-        .special-prism { background: radial-gradient(circle, #fff 0%, #ec4899 100%); border-radius: 50%; border: 2px solid #a855f7; }
+        /* High-end Styled Gems */
+        .piece-0 { background: linear-gradient(135deg, #f87171, #dc2626); border-radius: 8px; box-shadow: 0 4px 10px rgba(220,38,38,0.4); } 
+        .piece-1 { background: linear-gradient(135deg, #38bdf8, #0284c7); border-radius: 50%; box-shadow: 0 4px 10px rgba(2,132,199,0.4); } 
+        .piece-2 { background: linear-gradient(135deg, #4ade80, #16a34a); clip-path: polygon(50% 10%, 5% 90%, 95% 90%); border-radius: 0; box-shadow: 0 4px 10px rgba(22,163,74,0.4); } 
+        .piece-3 { background: linear-gradient(135deg, #facc15, #ca8a04); clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%); box-shadow: 0 4px 10px rgba(202,138,4,0.4); } 
+        .piece-4 { background: linear-gradient(135deg, #c084fc, #9333ea); border-radius: 35%; box-shadow: 0 4px 10px rgba(147,51,234,0.4); }
+        
+        /* Special Pieces with clear iconography */
+        .special-drone { background: radial-gradient(circle, #7dd3fc 0%, #0369a1 100%); border-radius: 6px; border: 2px solid #fff; animation: pulse-glow 1.5s infinite; }
+        .special-tnt { background: radial-gradient(circle, #fdba74 0%, #c2410c 100%); border-radius: 8px; border: 2px solid #facc15; }
+        .special-prism { background: radial-gradient(circle, #ffffff 0%, #f472b6 100%, #db2777 100%); border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 12px #ec4899; }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
 
         .controls {
             display: flex;
             gap: 8px;
-            margin-top: 12px;
+            margin-top: 10px;
         }
         button {
             flex: 1;
             background: var(--accent);
             color: #0f172a;
             border: none;
-            padding: 10px;
+            padding: 8px;
             font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
-            transition: opacity 0.2s;
         }
-        button:hover { opacity: 0.9; }
         .status-msg {
-            margin-top: 8px;
+            margin-top: 6px;
             text-align: center;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #94a3b8;
-            min-height: 1.2em;
+            min-height: 1.1em;
         }
     </style>
 </head>
 <body>
 
 <div class="game-container">
-    <h1>Match-3 Prototype</h1>
+    <h1>Match-3 Quest</h1>
     <div class="hud">
-        <span id="score-display">Score: 0</span>
+        <span id="level-display">Level: 1</span>
+        <span id="score-display">Score: 0 / 1000</span>
         <span id="moves-display">Moves: 25</span>
     </div>
     <div class="board" id="board-grid"></div>
-    <div class="status-msg" id="status-msg">Select two adjacent tiles to swap.</div>
+    <div class="status-msg" id="status-msg">Drag adjacent pieces to swap & match!</div>
     <div class="controls">
-        <button onclick="initGame()">New Board</button>
-        <button onclick="shuffleBoard()">Shuffle</button>
+        <button onclick="initGame()">Restart Level</button>
+        <button onclick="shuffleBoard()">Shuffle Board</button>
     </div>
 </div>
 
@@ -125,9 +133,11 @@
     const NUM_COLORS = 5;
     let board = [];
     let score = 0;
+    let level = 1;
+    let targetScore = 1000;
     let moves = 25;
-    let selectedCell = null;
     let isProcessing = false;
+    let dragStart = null;
 
     function randomColor() {
         return Math.floor(Math.random() * NUM_COLORS);
@@ -136,7 +146,6 @@
     function initGame() {
         score = 0;
         moves = 25;
-        selectedCell = null;
         isProcessing = false;
         
         do {
@@ -148,10 +157,10 @@
                 }
                 board.push(row);
             }
-        } while (detectMatches().length > 0 || !hasLegalMoves());
+        } while (detectAllMatches().length > 0);
 
         updateUI();
-        setMessage("Game started! Match 3+ or make specials.");
+        setMessage(`Level ${level}: Reach ${targetScore} points!`);
     }
 
     function renderBoard() {
@@ -162,6 +171,8 @@
             for (let c = 0; c < BOARD_SIZE; c++) {
                 const cellDiv = document.createElement('div');
                 cellDiv.className = 'cell';
+                cellDiv.dataset.row = r;
+                cellDiv.dataset.col = c;
                 
                 const piece = board[r][c];
                 if (piece !== null) {
@@ -170,7 +181,7 @@
                         cellDiv.innerText = '🚁';
                     } else if (piece.special === 'tnt') {
                         cellDiv.classList.add('special-tnt');
-                        cellDiv.innerText = 'TNT';
+                        cellDiv.innerText = '💣';
                     } else if (piece.special === 'prism') {
                         cellDiv.classList.add('special-prism');
                         cellDiv.innerText = '💎';
@@ -179,53 +190,55 @@
                     }
                 }
 
-                if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
-                    cellDiv.classList.add('selected');
-                }
+                // Touch & Mouse Drag Handlers for Dragging to Swap
+                cellDiv.addEventListener('pointerdown', (e) => startDrag(e, r, c));
+                cellDiv.addEventListener('pointerenter', (e) => updateDrag(e, r, c));
 
-                cellDiv.addEventListener('click', () => handleCellClick(r, c));
                 grid.appendChild(cellDiv);
             }
         }
-        document.getElementById('score-display').innerText = `Score: ${score}`;
+        document.getElementById('score-display').innerText = `Score: ${score} / ${targetScore}`;
         document.getElementById('moves-display').innerText = `Moves: ${moves}`;
+        document.getElementById('level-display').innerText = `Level: ${level}`;
     }
 
-    function handleCellClick(r, c) {
+    window.addEventListener('pointerup', () => { dragStart = null; });
+
+    function startDrag(e, r, c) {
         if (isProcessing || moves <= 0) return;
+        dragStart = { r, c };
+        e.target.classList.add('dragging');
+    }
 
-        if (!selectedCell) {
-            selectedCell = { r, c };
-            renderBoard();
-        } else {
-            const prev = selectedCell;
-            selectedCell = null;
-
-            const isAdjacent = Math.abs(prev.r - r) + Math.abs(prev.c - c) === 1;
-            if (isAdjacent) {
-                trySwapAndResolve(prev.r, prev.c, r, c);
-            } else {
-                selectedCell = { r, c };
-                renderBoard();
-            }
+    function updateDrag(e, r, c) {
+        if (!dragStart || isProcessing) return;
+        let dr = Math.abs(dragStart.r - r);
+        let dc = Math.abs(dragStart.c - c);
+        
+        if (dr + dc === 1) {
+            let start = dragStart;
+            dragStart = null; // Prevent multi-triggers
+            trySwapAndResolve(start.r, start.c, r, c);
         }
     }
 
     function trySwapAndResolve(r1, c1, r2, c2) {
         isProcessing = true;
         
+        // Swap cells
         let temp = board[r1][c1];
         board[r1][c1] = board[r2][c2];
         board[r2][c2] = temp;
 
-        let matches = detectMatches();
+        let matchGroups = detectAllMatches();
         let specialActivated = checkSpecialInteractions(r1, c1, r2, c2);
 
-        if (matches.length > 0 || specialActivated) {
+        if (matchGroups.length > 0 || specialActivated) {
             moves--;
             renderBoard();
             setTimeout(() => resolveBoardLoop(), 300);
         } else {
+            // Revert swap if invalid
             temp = board[r1][c1];
             board[r1][c1] = board[r2][c2];
             board[r2][c2] = temp;
@@ -240,16 +253,17 @@
         let p2 = board[r2][c2];
         if (!p1 || !p2) return false;
 
-        if (p1.special === 'prism' && p2.color !== null && p2.special === null) {
+        // Prism Swap activation
+        if (p1.special === 'prism' && p2.color !== null) {
             clearColor(p2.color);
             board[r1][c1] = null;
-            score += 50;
+            score += 100;
             return true;
         }
-        if (p2.special === 'prism' && p1.color !== null && p1.special === null) {
+        if (p2.special === 'prism' && p1.color !== null) {
             clearColor(p1.color);
             board[r2][c2] = null;
-            score += 50;
+            score += 100;
             return true;
         }
         return false;
@@ -260,74 +274,68 @@
             for (let c = 0; c < BOARD_SIZE; c++) {
                 if (board[r][c] && board[r][c].color === colorId) {
                     board[r][c] = null;
-                    score += 10;
+                    score += 20;
                 }
             }
         }
     }
 
-    function detectMatches() {
-        let matchedCells = new Set();
-
+    function detectAllMatches() {
+        let matched = new Set();
+        
+        // Horizontal runs
         for (let r = 0; r < BOARD_SIZE; r++) {
-            let matchLen = 1;
+            let len = 1;
             for (let c = 0; c < BOARD_SIZE; c++) {
                 let curr = board[r][c];
                 let next = c + 1 < BOARD_SIZE ? board[r][c+1] : null;
-                
-                if (curr && next && curr.color === next.color && curr.special === null && next.special === null) {
-                    matchLen++;
+                if (curr && next && curr.color === next.color && !curr.special && !next.special) {
+                    len++;
                 } else {
-                    if (matchLen >= 3) {
-                        for (let i = c - matchLen + 1; i <= c; i++) matchedCells.add(`${r},${i}`);
+                    if (len >= 3) {
+                        for (let i = c - len + 1; i <= c; i++) matched.add(`${r},${i}`);
                     }
-                    matchLen = 1;
+                    len = 1;
                 }
             }
         }
 
+        // Vertical runs
         for (let c = 0; c < BOARD_SIZE; c++) {
-            let matchLen = 1;
+            let len = 1;
             for (let r = 0; r < BOARD_SIZE; r++) {
                 let curr = board[r][c];
                 let next = r + 1 < BOARD_SIZE ? board[r+1][c] : null;
-
-                if (curr && next && curr.color === next.color && curr.special === null && next.special === null) {
-                    matchLen++;
+                if (curr && next && curr.color === next.color && !curr.special && !next.special) {
+                    len++;
                 } else {
-                    if (matchLen >= 3) {
-                        for (let i = r - matchLen + 1; i <= r; i++) matchedCells.add(`${i},${c}`);
+                    if (len >= 3) {
+                        for (let i = r - len + 1; i <= r; i++) matched.add(`${i},${c}`);
                     }
-                    matchLen = 1;
+                    len = 1;
                 }
             }
         }
-
-        return Array.from(matchedCells).map(coord => {
+        return Array.from(matched).map(coord => {
             let [r, c] = coord.split(',').map(Number);
             return { r, c };
         });
     }
 
     function resolveBoardLoop() {
-        let matches = detectMatches();
+        let matches = detectAllMatches();
         if (matches.length === 0) {
             isProcessing = false;
-            if (!hasLegalMoves()) {
-                shuffleBoard();
-                setMessage("No moves left! Board shuffled.");
-            } else {
-                setMessage("Ready.");
-            }
-            if (moves <= 0) {
-                setMessage("Out of moves! Game Over.");
-            }
+            checkGameProgress();
             return;
         }
 
+        // Clear matches & award score
         matches.forEach(m => {
-            board[m.r][m.c] = null;
-            score += 10;
+            if (board[m.r][m.c]) {
+                board[m.r][m.c] = null;
+                score += 15;
+            }
         });
 
         renderBoard();
@@ -350,8 +358,29 @@
                 }
             }
             for (let r = writeRow; r >= 0; r--) {
-                board[r][c] = { color: randomColor(), special: null };
+                // Introduce specials randomly for dynamic prototype fun
+                let specialRoll = Math.random();
+                let special = null;
+                if (specialRoll < 0.03) special = 'prism';
+                else if (specialRoll < 0.08) special = 'tnt';
+                else if (specialRoll < 0.15) special = 'drone';
+
+                board[r][c] = { color: randomColor(), special: special };
             }
+        }
+    }
+
+    function checkGameProgress() {
+        if (score >= targetScore) {
+            level++;
+            targetScore += 500;
+            moves += 15;
+            setMessage(`🎉 Level Up! Welcome to Level ${level}!`);
+            renderBoard();
+        } else if (moves <= 0) {
+            setMessage("❌ Out of Moves! Tap Restart to try again.");
+        } else {
+            setMessage("Keep going! Reach target score.");
         }
     }
 
@@ -362,10 +391,7 @@
                 tiles.push(board[r][c]);
             }
         }
-        for (let i = tiles.length - 1; i > 0; i--) {
-            let j = Math.floor(Math.random() * (i + 1));
-            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-        }
+        tiles.sort(() => Math.random() - 0.5);
         let idx = 0;
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
@@ -373,18 +399,11 @@
             }
         }
         renderBoard();
-    }
-
-    function hasLegalMoves() {
-        return true; 
+        setMessage("Board shuffled!");
     }
 
     function setMessage(msg) {
         document.getElementById('status-msg').innerText = msg;
-    }
-
-    function updateUI() {
-        renderBoard();
     }
 
     initGame();

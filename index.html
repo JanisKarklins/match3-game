@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match-3 Puzzle Prototype</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #38bdf8;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 { margin: 8px 0; font-size: 1.5rem; text-align: center; }
+        .game-container {
+            background: var(--panel-bg);
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            max-width: 420px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            background: rgba(0,0,0,0.2);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            background: #020617;
+            padding: 8px;
+            border-radius: 12px;
+            aspect-ratio: 1;
+        }
+        .cell {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s ease, background-color 0.1s ease;
+            position: relative;
+            font-size: 1.2rem;
+        }
+        .cell:hover { background: rgba(255, 255, 255, 0.1); }
+        .cell.selected {
+            outline: 3px solid var(--accent);
+            transform: scale(0.95);
+        }
+        .piece-0 { background: radial-gradient(circle, #f87171 0%, #ef4444 100%); border-radius: 6px; }
+        .piece-1 { background: radial-gradient(circle, #38bdf8 0%, #0284c7 100%); border-radius: 50%; }
+        .piece-2 { background: radial-gradient(circle, #4ade80 0%, #22c55e 100%); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); border-radius: 0; }
+        .piece-3 { background: radial-gradient(circle, #facc15 0%, #eab308 100%); clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+        .piece-4 { background: radial-gradient(circle, #c084fc 0%, #a855f7 100%); border-radius: 50%; }
+        
+        .special-drone { background: radial-gradient(circle, #38bdf8 0%, #1d4ed8 100%); border-radius: 4px; border: 2px dashed #fff; }
+        .special-tnt { background: radial-gradient(circle, #f97316 0%, #c2410c 100%); border-radius: 8px; border: 2px solid #facc15; }
+        .special-prism { background: radial-gradient(circle, #fff 0%, #ec4899 100%); border-radius: 50%; border: 2px solid #a855f7; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        button {
+            flex: 1;
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 10px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .status-msg {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>Match-3 Prototype</h1>
+    <div class="hud">
+        <span id="score-display">Score: 0</span>
+        <span id="moves-display">Moves: 25</span>
+    </div>
+    <div class="board" id="board-grid"></div>
+    <div class="status-msg" id="status-msg">Select two adjacent tiles to swap.</div>
+    <div class="controls">
+        <button onclick="initGame()">New Board</button>
+        <button onclick="shuffleBoard()">Shuffle</button>
+    </div>
+</div>
+
+<script>
+    const BOARD_SIZE = 8;
+    const NUM_COLORS = 5;
+    let board = [];
+    let score = 0;
+    let moves = 25;
+    let selectedCell = null;
+    let isProcessing = false;
+
+    function randomColor() {
+        return Math.floor(Math.random() * NUM_COLORS);
+    }
+
+    function initGame() {
+        score = 0;
+        moves = 25;
+        selectedCell = null;
+        isProcessing = false;
+        
+        do {
+            board = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                let row = [];
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    row.push({ color: randomColor(), special: null });
+                }
+                board.push(row);
+            }
+        } while (detectMatches().length > 0 || !hasLegalMoves());
+
+        updateUI();
+        setMessage("Game started! Match 3+ or make specials.");
+    }
+
+    function renderBoard() {
+        const grid = document.getElementById('board-grid');
+        grid.innerHTML = '';
+        
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'cell';
+                
+                const piece = board[r][c];
+                if (piece !== null) {
+                    if (piece.special === 'drone') {
+                        cellDiv.classList.add('special-drone');
+                        cellDiv.innerText = '🚁';
+                    } else if (piece.special === 'tnt') {
+                        cellDiv.classList.add('special-tnt');
+                        cellDiv.innerText = 'TNT';
+                    } else if (piece.special === 'prism') {
+                        cellDiv.classList.add('special-prism');
+                        cellDiv.innerText = '💎';
+                    } else {
+                        cellDiv.classList.add(`piece-${piece.color}`);
+                    }
+                }
+
+                if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                    cellDiv.classList.add('selected');
+                }
+
+                cellDiv.addEventListener('click', () => handleCellClick(r, c));
+                grid.appendChild(cellDiv);
+            }
+        }
+        document.getElementById('score-display').innerText = `Score: ${score}`;
+        document.getElementById('moves-display').innerText = `Moves: ${moves}`;
+    }
+
+    function handleCellClick(r, c) {
+        if (isProcessing || moves <= 0) return;
+
+        if (!selectedCell) {
+            selectedCell = { r, c };
+            renderBoard();
+        } else {
+            const prev = selectedCell;
+            selectedCell = null;
+
+            const isAdjacent = Math.abs(prev.r - r) + Math.abs(prev.c - c) === 1;
+            if (isAdjacent) {
+                trySwapAndResolve(prev.r, prev.c, r, c);
+            } else {
+                selectedCell = { r, c };
+                renderBoard();
+            }
+        }
+    }
+
+    function trySwapAndResolve(r1, c1, r2, c2) {
+        isProcessing = true;
+        
+        let temp = board[r1][c1];
+        board[r1][c1] = board[r2][c2];
+        board[r2][c2] = temp;
+
+        let matches = detectMatches();
+        let specialActivated = checkSpecialInteractions(r1, c1, r2, c2);
+
+        if (matches.length > 0 || specialActivated) {
+            moves--;
+            renderBoard();
+            setTimeout(() => resolveBoardLoop(), 300);
+        } else {
+            temp = board[r1][c1];
+            board[r1][c1] = board[r2][c2];
+            board[r2][c2] = temp;
+            isProcessing = false;
+            renderBoard();
+            setMessage("Invalid move!");
+        }
+    }
+
+    function checkSpecialInteractions(r1, c1, r2, c2) {
+        let p1 = board[r1][c1];
+        let p2 = board[r2][c2];
+        if (!p1 || !p2) return false;
+
+        if (p1.special === 'prism' && p2.color !== null && p2.special === null) {
+            clearColor(p2.color);
+            board[r1][c1] = null;
+            score += 50;
+            return true;
+        }
+        if (p2.special === 'prism' && p1.color !== null && p1.special === null) {
+            clearColor(p1.color);
+            board[r2][c2] = null;
+            score += 50;
+            return true;
+        }
+        return false;
+    }
+
+    function clearColor(colorId) {
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                if (board[r][c] && board[r][c].color === colorId) {
+                    board[r][c] = null;
+                    score += 10;
+                }
+            }
+        }
+    }
+
+    function detectMatches() {
+        let matchedCells = new Set();
+
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            let matchLen = 1;
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let curr = board[r][c];
+                let next = c + 1 < BOARD_SIZE ? board[r][c+1] : null;
+                
+                if (curr && next && curr.color === next.color && curr.special === null && next.special === null) {
+                    matchLen++;
+                } else {
+                    if (matchLen >= 3) {
+                        for (let i = c - matchLen + 1; i <= c; i++) matchedCells.add(`${r},${i}`);
+                    }
+                    matchLen = 1;
+                }
+            }
+        }
+
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            let matchLen = 1;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                let curr = board[r][c];
+                let next = r + 1 < BOARD_SIZE ? board[r+1][c] : null;
+
+                if (curr && next && curr.color === next.color && curr.special === null && next.special === null) {
+                    matchLen++;
+                } else {
+                    if (matchLen >= 3) {
+                        for (let i = r - matchLen + 1; i <= r; i++) matchedCells.add(`${i},${c}`);
+                    }
+                    matchLen = 1;
+                }
+            }
+        }
+
+        return Array.from(matchedCells).map(coord => {
+            let [r, c] = coord.split(',').map(Number);
+            return { r, c };
+        });
+    }
+
+    function resolveBoardLoop() {
+        let matches = detectMatches();
+        if (matches.length === 0) {
+            isProcessing = false;
+            if (!hasLegalMoves()) {
+                shuffleBoard();
+                setMessage("No moves left! Board shuffled.");
+            } else {
+                setMessage("Ready.");
+            }
+            if (moves <= 0) {
+                setMessage("Out of moves! Game Over.");
+            }
+            return;
+        }
+
+        matches.forEach(m => {
+            board[m.r][m.c] = null;
+            score += 10;
+        });
+
+        renderBoard();
+
+        setTimeout(() => {
+            applyGravityAndRefill();
+            renderBoard();
+            setTimeout(resolveBoardLoop, 300);
+        }, 300);
+    }
+
+    function applyGravityAndRefill() {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            let writeRow = BOARD_SIZE - 1;
+            for (let r = BOARD_SIZE - 1; r >= 0; r--) {
+                if (board[r][c] !== null) {
+                    board[writeRow][c] = board[r][c];
+                    if (writeRow !== r) board[r][c] = null;
+                    writeRow--;
+                }
+            }
+            for (let r = writeRow; r >= 0; r--) {
+                board[r][c] = { color: randomColor(), special: null };
+            }
+        }
+    }
+
+    function shuffleBoard() {
+        let tiles = [];
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                tiles.push(board[r][c]);
+            }
+        }
+        for (let i = tiles.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+        let idx = 0;
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                board[r][c] = tiles[idx++];
+            }
+        }
+        renderBoard();
+    }
+
+    function hasLegalMoves() {
+        return true; 
+    }
+
+    function setMessage(msg) {
+        document.getElementById('status-msg').innerText = msg;
+    }
+
+    function updateUI() {
+        renderBoard();
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
